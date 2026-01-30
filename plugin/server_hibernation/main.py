@@ -32,9 +32,7 @@ class ServerHibernationPlugin:
         default_config = {
             "server": {
                 "host": "localhost",
-                "port": 25565,
-                "rcon_port": 25575,
-                "rcon_password": ""
+                "port": 25565
             },
             "proxy": {
                 "host": "0.0.0.0",
@@ -49,10 +47,6 @@ class ServerHibernationPlugin:
                 "hibernation_delay": 60,
                 "stop_server": True,  # True to stop server, False to suspend server process
                 "wake_message": "§aServer is waking up, please wait..."
-            },
-            "debug": {
-                "enabled": False,
-                "log_level": "INFO"
             }
         }
         

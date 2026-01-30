@@ -46,9 +46,7 @@
 {
   "server": {
     "host": "localhost",
-    "port": 25565,
-    "rcon_port": 25575,
-    "rcon_password": ""
+    "port": 25565
   },
   "proxy": {
     "host": "0.0.0.0",

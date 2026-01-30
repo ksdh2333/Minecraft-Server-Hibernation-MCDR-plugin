@@ -84,9 +84,7 @@ def reload_command(source, plugin_instance):
         default_config = {
             "server": {
                 "host": "localhost",
-                "port": 25565,
-                "rcon_port": 25575,
-                "rcon_password": ""
+                "port": 25565
             },
             "proxy": {
                 "host": "0.0.0.0",
@@ -101,10 +99,6 @@ def reload_command(source, plugin_instance):
                 "hibernation_delay": 60,
                 "stop_server": True,
                 "wake_message": "§aServer is waking up, please wait..."
-            },
-            "debug": {
-                "enabled": False,
-                "log_level": "INFO"
             }
         }
         
@@ -147,7 +141,7 @@ def set_config_command(source, ctx, plugin_instance):
             value = int(value)
         elif key == 'hibernation.stop_server':
             value = value.lower() in ['true', 'yes', '1', 'on']
-        elif key in ['proxy.port', 'server.port', 'server.rcon_port']:
+        elif key in ['proxy.port', 'server.port']:
             value = int(value)
         
         # Set configuration value
