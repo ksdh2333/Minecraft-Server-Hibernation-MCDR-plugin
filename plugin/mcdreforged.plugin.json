@@ -1,6 +1,6 @@
 {
     "id": "server_hibernation",
-    "version": "1.0.0-alpha.1+build.6",
+    "version": "1.0.0-alpha.1+build.7",
     "name": "Server Hibernation",
     "description": {
         "en_us": "Pause server process when no players are present",

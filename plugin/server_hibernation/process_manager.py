@@ -66,11 +66,8 @@ class ProcessManager:
         
         # Get the server process PIDs from MCDReforged
         try:
-            # Import MCDReforged's mcdr
-            import mcdreforged.api.all as mcdr_api
-            
-            # Get the server interface instance
-            server_instance = mcdr_api.mcdr.get_instance()
+            # Use the server interface that was passed to us
+            server_instance = self.server_interface
             if server_instance:
                 # Get all server process PIDs from MCDReforged
                 server_pids = server_instance.get_server_pid_all()
