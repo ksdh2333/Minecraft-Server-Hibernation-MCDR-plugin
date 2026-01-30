@@ -56,33 +56,6 @@ class ServerHibernationPlugin:
             in_data_folder=True
         )
         
-        # Migrate old config options to new format
-        config_updated = False
-        if "enable_process_suspension" in self.config["hibernation"] or "stop_server_instead_of_hibernate" in self.config["hibernation"]:
-            # Get old values
-            enable_suspension = self.config["hibernation"].get("enable_process_suspension", False)
-            stop_server = self.config["hibernation"].get("stop_server_instead_of_hibernate", True)
-            
-            # Remove old options
-            self.config["hibernation"].pop("enable_process_suspension", None)
-            self.config["hibernation"].pop("stop_server_instead_of_hibernate", None)
-            
-            # Set new option based on old values
-            # If process suspension is enabled, don't stop server
-            self.config["hibernation"]["stop_server"] = not enable_suspension and stop_server
-            
-            self.server.logger.info(f"Migrated config: stop_server = {self.config['hibernation']['stop_server']}")
-            config_updated = True
-        elif "stop_server" not in self.config["hibernation"]:
-            # Add new option if not present
-            self.config["hibernation"]["stop_server"] = True
-            self.server.logger.info("Added new config option: stop_server")
-            config_updated = True
-        
-        if config_updated:
-            # Save the updated config
-            self.server.save_config_simple(self.config, in_data_folder=True)
-        
         # Initialize components
         self.process_manager = ProcessManager(self.server, self.config)
         self.proxy_server = ProxyServer(self.config, self.server, self.on_wake_up_request)
