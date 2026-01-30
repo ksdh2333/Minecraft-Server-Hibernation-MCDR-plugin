@@ -6,10 +6,12 @@
         "en_us": "Pause server process when no players are present",
         "zh_cn": "当没有玩家在线时暂停服务器进程"
     },
-    "author": ["ksdh2333"],
+    "author": [
+        "ksdh2333"
+    ],
     "link": "https://github.com/ksdh2333/Minecraft-Server-Hibernation-MCDR-plugin",
     "dependencies": {
-      "mcdreforged": ">=2.0.0"
+        "mcdreforged": ">=2.0.0"
     },
     "archive_name": "server_hibernation",
     "entrypoint": "server_hibernation"
