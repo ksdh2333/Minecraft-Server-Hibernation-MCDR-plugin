@@ -69,7 +69,15 @@ class ProcessManager:
                     # Return the first server PID (MCDReforged typically manages one server)
                     server_pid = server_pids[0]
                     self.server_interface.logger.info(f"Found server process: PID {server_pid}")
-                    return server_pid
+                    
+                    # Try to find the Java child process
+                    java_pid = self.find_java_child_process(server_pid)
+                    if java_pid:
+                        self.server_interface.logger.info(f"Found Java server process: PID {java_pid}")
+                        return java_pid
+                    else:
+                        self.server_interface.logger.warning(f"Could not find Java child process for PID {server_pid}, using parent process")
+                        return server_pid
                 else:
                     self.server_interface.logger.warning("MCDReforged returned empty list for server PIDs (server might be stopped)")
                     return None
@@ -78,6 +86,56 @@ class ProcessManager:
                 return None
         except Exception as e:
             self.server_interface.logger.error(f"Failed to get server PIDs from MCDReforged: {e}")
+            return None
+    
+    def find_java_child_process(self, parent_pid: int) -> Optional[int]:
+        """Find Java child process of the given parent process"""
+        try:
+            # Create snapshot of all processes
+            process_snapshot = kernel32.CreateToolhelp32Snapshot(0x00000002, 0)  # TH32CS_SNAPPROCESS
+            if process_snapshot == -1:
+                self.server_interface.logger.error("Failed to create process snapshot")
+                return None
+            
+            # Define PROCESSENTRY32 structure
+            class PROCESSENTRY32(ctypes.Structure):
+                _fields_ = [
+                    ('dwSize', wintypes.DWORD),
+                    ('cntUsage', wintypes.DWORD),
+                    ('th32ProcessID', wintypes.DWORD),
+                    ('th32DefaultHeapID', wintypes.ULONG),
+                    ('th32ModuleID', wintypes.DWORD),
+                    ('cntThreads', wintypes.DWORD),
+                    ('th32ParentProcessID', wintypes.DWORD),
+                    ('pcPriClassBase', wintypes.LONG),
+                    ('dwFlags', wintypes.DWORD),
+                    ('szExeFile', wintypes.CHAR * 260)
+                ]
+            
+            # Iterate through processes
+            process_entry = PROCESSENTRY32()
+            process_entry.dwSize = ctypes.sizeof(PROCESSENTRY32)
+            
+            if kernel32.Process32First(process_snapshot, ctypes.byref(process_entry)):
+                while True:
+                    process_id = process_entry.th32ProcessID
+                    parent_process_id = process_entry.th32ParentProcessID
+                    exe_file = process_entry.szExeFile.decode('utf-8', errors='ignore').lower()
+                    
+                    # Check if this is a child process of our target and is Java
+                    if parent_process_id == parent_pid and 'java' in exe_file:
+                        kernel32.CloseHandle(process_snapshot)
+                        return process_id
+                    
+                    # Get next process
+                    if not kernel32.Process32Next(process_snapshot, ctypes.byref(process_entry)):
+                        break
+            
+            kernel32.CloseHandle(process_snapshot)
+            return None
+            
+        except Exception as e:
+            self.server_interface.logger.error(f"Failed to find Java child process: {e}")
             return None
     
     def suspend_server_windows(self) -> bool:
