@@ -12,7 +12,7 @@ from .commands import register_commands
 # Global plugin instance
 plugin_instance = None
 
-def on_load(server: mcdr.PluginServerInterface, _old):
+def on_load(server: mcdr.PluginServerInterface, _prev_module):
     """Plugin load event"""
     global plugin_instance
     plugin_instance = ServerHibernationPlugin(server)
