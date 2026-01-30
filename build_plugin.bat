@@ -1,0 +1,1 @@
+mcdreforged pack -i plugin/ -o build/ -n {id}-{version}.mcdr
