@@ -4,7 +4,6 @@ Process management for the Minecraft server
 
 import os
 import time
-import psutil
 import ctypes
 from ctypes import wintypes
 from typing import Optional, Dict, Any
@@ -55,42 +54,22 @@ class ProcessManager:
     def __init__(self, server_interface, config: Dict[str, Any]):
         self.server_interface = server_interface
         self.config = config
-        self.server_process = None
         self.is_suspended = False
         self.suspended_threads = []  # Track suspended threads for resumption
         
-    def get_server_process(self) -> Optional[psutil.Process]:
-        """Get the Minecraft server process using MCDReforged's API"""
-        if self.server_process and self.server_process.is_running():
-            return self.server_process
-        
+    def get_server_process(self) -> Optional[int]:
+        """Get the Minecraft server process PID using MCDReforged's API"""
         # Get the server process PIDs from MCDReforged
         try:
-            # Use the server interface that was passed to us
             server_instance = self.server_interface
             if server_instance:
                 # Get all server process PIDs from MCDReforged
                 server_pids = server_instance.get_server_pid_all()
                 if server_pids:
-                    # Find the Java process among the server PIDs
-                    java_process = None
-                    for pid in server_pids:
-                        try:
-                            process = psutil.Process(pid)
-                            # Check if this is a Java process
-                            if 'java' in process.name().lower():
-                                java_process = process
-                                self.server_interface.logger.info(f"Found Java server process: PID {process.pid}")
-                                break
-                        except (psutil.NoSuchProcess, psutil.AccessDenied):
-                            continue
-                    
-                    if java_process:
-                        self.server_process = java_process
-                        return self.server_process
-                    else:
-                        self.server_interface.logger.error(f"No Java process found in server PIDs: {server_pids}")
-                        return None
+                    # Return the first server PID (MCDReforged typically manages one server)
+                    server_pid = server_pids[0]
+                    self.server_interface.logger.info(f"Found server process: PID {server_pid}")
+                    return server_pid
                 else:
                     self.server_interface.logger.warning("MCDReforged returned empty list for server PIDs (server might be stopped)")
                     return None
@@ -104,14 +83,10 @@ class ProcessManager:
     def suspend_server_windows(self) -> bool:
         """Suspend the server process using Windows API (more reliable)"""
         if not self.is_suspended:
-            process = self.get_server_process()
-            if process:
+            process_pid = self.get_server_process()
+            if process_pid:
                 try:
-                    self.server_interface.logger.info(f"Attempting to suspend server process {process.pid} using Windows API")
-                    status = process.status()
-                    num_threads = process.num_threads()
-                    self.server_interface.logger.info(f"Process {process.pid} status: {status}")
-                    self.server_interface.logger.info(f"Process {process.pid} thread count: {num_threads}")
+                    self.server_interface.logger.info(f"Attempting to suspend server process {process_pid} using Windows API")
                     
                     # Create snapshot of all threads
                     thread_snapshot = kernel32.CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0)
@@ -131,7 +106,7 @@ class ProcessManager:
                             thread_id = thread_entry.th32ThreadID
                             owner_process_id = thread_entry.th32OwnerProcessID
                             
-                            if owner_process_id == process.pid:
+                            if owner_process_id == process_pid:
                                 # Open the thread
                                 thread_handle = kernel32.OpenThread(THREAD_SUSPEND_RESUME, False, thread_id)
                                 if thread_handle:
@@ -151,20 +126,7 @@ class ProcessManager:
                     
                     if suspended_count > 0:
                         self.is_suspended = True
-                        self.server_interface.logger.info(f"Successfully suspended {suspended_count} threads of process {process.pid}")
-                        
-                        # Verify suspension
-                        time.sleep(0.5)
-                        new_status = process.status()
-                        new_num_threads = process.num_threads()
-                        cpu_before = process.cpu_percent(interval=0.1)
-                        time.sleep(1)
-                        cpu_after = process.cpu_percent(interval=0.1)
-                        
-                        self.server_interface.logger.info(f"Process {process.pid} status after suspend: {new_status}")
-                        self.server_interface.logger.info(f"Process {process.pid} thread count after suspend: {new_num_threads}")
-                        self.server_interface.logger.info(f"Process {process.pid} CPU usage: {cpu_before}% -> {cpu_after}%")
-                        
+                        self.server_interface.logger.info(f"Successfully suspended {suspended_count} threads of process {process_pid}")
                         return True
                     else:
                         self.server_interface.logger.error("No threads were suspended")
@@ -193,14 +155,10 @@ class ProcessManager:
     def resume_server_windows(self) -> bool:
         """Resume the server process using Windows API"""
         if self.is_suspended and self.suspended_threads:
-            process = self.get_server_process()
-            if process:
+            process_pid = self.get_server_process()
+            if process_pid:
                 try:
-                    self.server_interface.logger.info(f"Attempting to resume server process {process.pid} using Windows API")
-                    status = process.status()
-                    num_threads = process.num_threads()
-                    self.server_interface.logger.info(f"Process {process.pid} status before resume: {status}")
-                    self.server_interface.logger.info(f"Process {process.pid} thread count before resume: {num_threads}")
+                    self.server_interface.logger.info(f"Attempting to resume server process {process_pid} using Windows API")
                     
                     resumed_count = 0
                     failed_threads = []
@@ -224,19 +182,7 @@ class ProcessManager:
                     self.is_suspended = False
                     
                     if resumed_count > 0:
-                        self.server_interface.logger.info(f"Successfully resumed {resumed_count} threads of process {process.pid}")
-                        
-                        # Verify resumption
-                        time.sleep(0.5)
-                        new_status = process.status()
-                        new_num_threads = process.num_threads()
-                        cpu_before = process.cpu_percent(interval=0.1)
-                        time.sleep(1)
-                        cpu_after = process.cpu_percent(interval=0.1)
-                        
-                        self.server_interface.logger.info(f"Process {process.pid} status after resume: {new_status}")
-                        self.server_interface.logger.info(f"Process {process.pid} thread count after resume: {new_num_threads}")
-                        self.server_interface.logger.info(f"Process {process.pid} CPU usage: {cpu_before}% -> {cpu_after}%")
+                        self.server_interface.logger.info(f"Successfully resumed {resumed_count} threads of process {process_pid}")
                         
                         if failed_threads:
                             self.server_interface.logger.warning(f"Failed to resume {len(failed_threads)} threads")
@@ -265,52 +211,31 @@ class ProcessManager:
             return True
     
     def stop_server(self) -> bool:
-        """Stop the server process"""
-        process = self.get_server_process()
-        if process:
-            try:
-                # Try graceful shutdown first
-                process.terminate()
-                
-                # Wait for process to terminate
-                try:
-                    process.wait(timeout=10)
-                except psutil.TimeoutExpired:
-                    # Force kill if graceful shutdown fails
-                    process.kill()
-                    process.wait()
-                
-                self.server_interface.logger.info(f"Server process {process.pid} stopped")
-                return True
-            except Exception as e:
-                self.server_interface.logger.error(f"Failed to stop process: {e}")
-                return False
-        return False
+        """Stop the server process using MCDReforged's API"""
+        try:
+            # Use MCDReforged's method to stop the server
+            self.server_interface.stop()
+            self.server_interface.logger.info("Server stop command sent")
+            return True
+        except Exception as e:
+            self.server_interface.logger.error(f"Failed to stop server: {e}")
+            return False
     
     def is_server_running(self) -> bool:
-        """Check if server is running"""
-        process = self.get_server_process()
-        return process is not None and process.is_running()
+        """Check if server is running using MCDReforged's API"""
+        try:
+            # Check if server is running using MCDReforged's API
+            return self.server_interface.is_server_running()
+        except Exception as e:
+            self.server_interface.logger.error(f"Failed to check server status: {e}")
+            return False
     
     def is_server_suspended(self) -> bool:
         """Check if server is suspended"""
         return self.is_suspended
     
     def get_server_pid(self) -> Optional[int]:
-        """Get server process PID"""
-        process = self.get_server_process()
-        return process.pid if process else None
+        """Get server process PID using MCDReforged's API"""
+        return self.get_server_process()
     
-    def get_server_resource_usage(self) -> Optional[Dict[str, float]]:
-        """Get server resource usage"""
-        process = self.get_server_process()
-        if process:
-            try:
-                return {
-                    'cpu_percent': process.cpu_percent(),
-                    'memory_percent': process.memory_percent(),
-                    'memory_mb': process.memory_info().rss / 1024 / 1024
-                }
-            except Exception as e:
-                self.server_interface.logger.error(f"Failed to get resource usage: {e}")
-        return None
+    
