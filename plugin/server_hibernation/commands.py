@@ -5,12 +5,11 @@ Command handlers for Server Hibernation plugin
 from typing import Dict, Any
 
 import mcdreforged as mcdr
-from mcdreforged.api.command import SimpleCommandBuilder, Text, GreedyText
 
-def register_commands(server: mcdr.Pluginmcdr, plugin_instance):
+def register_commands(server: mcdr.PluginServerInterface, plugin_instance):
     """Register plugin commands using SimpleCommandBuilder"""
     
-    builder = SimpleCommandBuilder()
+    builder = mcdr.SimpleCommandBuilder()
     
     # Declare commands
     builder.command('!!sh hibernate', lambda src: hibernate_command(src, plugin_instance))
@@ -23,8 +22,8 @@ def register_commands(server: mcdr.Pluginmcdr, plugin_instance):
     builder.command('!!sh help', lambda src: help_command(src, plugin_instance))
     
     # Define argument types
-    builder.arg('key', Text)
-    builder.arg('value', GreedyText)
+    builder.arg('key', mcdr.Text)
+    builder.arg('value', mcdr.GreedyText)
     
     # Register commands to server
     builder.register(server)
