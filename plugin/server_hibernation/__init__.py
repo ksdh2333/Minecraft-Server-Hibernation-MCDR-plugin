@@ -12,7 +12,7 @@ from .commands import register_commands
 # Global plugin instance
 plugin_instance = None
 
-def on_load(server: mcdr.Pluginmcdr):
+def on_load(server: mcdr.PluginServerInterface, old):
     """Plugin load event"""
     global plugin_instance
     plugin_instance = ServerHibernationPlugin(server)
@@ -21,26 +21,26 @@ def on_load(server: mcdr.Pluginmcdr):
     # Register commands
     register_commands(server, plugin_instance)
 
-def on_unload(server: mcdr.Pluginmcdr):
+def on_unload(server: mcdr.PluginServerInterface):
     """Plugin unload event"""
     global plugin_instance
     if plugin_instance:
         plugin_instance.unload()
         plugin_instance = None
 
-def on_player_joined(server: mcdr.Pluginmcdr, player: str, info):
+def on_player_joined(server: mcdr.PluginServerInterface, player: str, info):
     """Player joined event"""
     global plugin_instance
     if plugin_instance:
         plugin_instance.on_player_joined(player, info)
 
-def on_player_left(server: mcdr.Pluginmcdr, player: str):
+def on_player_left(server: mcdr.PluginServerInterface, player: str):
     """Player left event"""
     global plugin_instance
     if plugin_instance:
         plugin_instance.on_player_left(player)
 
-def on_server_startup(server: mcdr.Pluginmcdr):
+def on_server_startup(server: mcdr.PluginServerInterface):
     """Server startup event"""
     global plugin_instance
     if plugin_instance:

@@ -16,7 +16,7 @@ from .process_manager import ProcessManager
 class ServerHibernationPlugin:
     """Main plugin class"""
     
-    def __init__(self, server_interface: mcdr.Pluginmcdr):
+    def __init__(self, server_interface: mcdr.PluginServerInterface):
         self.server = server_interface
         self.config = {}
         self.proxy_server = None
