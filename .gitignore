@@ -4,6 +4,7 @@ __pycache__/
 .vscode/
 *.mcdr
 *.zip
+*.code-workspace
 temp/
 test/
 build/

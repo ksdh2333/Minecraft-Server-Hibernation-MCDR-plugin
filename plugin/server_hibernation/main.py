@@ -18,15 +18,15 @@ class ServerHibernationPlugin:
     
     def __init__(self, server_interface: mcdr.PluginServerInterface):
         self.server = server_interface
-        self.config = {}
-        self.proxy_server = None
-        self.process_manager = None
+        self.config: Dict[str, Any] = {}
+        self.proxy_server: Optional[ProxyServer] = None
+        self.process_manager: Optional[ProcessManager] = None
         self.is_hibernating = False
         self.player_count = 0
-        self.hibernation_timer = None
-        self.check_timer = None
+        self.hibernation_timer: Optional[threading.Timer] = None
+        self.check_timer: Optional[threading.Timer] = None
         
-    def load(self):
+    def load(self) -> None:
         """Load the plugin"""
         # Load configuration using MCDReforged's built-in method
         default_config = {
@@ -51,10 +51,16 @@ class ServerHibernationPlugin:
         }
         
         # Load existing config
-        self.config = self.server.load_config_simple(
+        config_data = self.server.load_config_simple(
             default_config=default_config,
             in_data_folder=True
         )
+        # Ensure config is a dictionary
+        if isinstance(config_data, dict):
+            self.config = config_data
+        else:
+            self.server.logger.warning(f"Config data is not a dictionary: {type(config_data)}")
+            self.config = default_config
         
         # Initialize components
         self.process_manager = ProcessManager(self.server, self.config)
@@ -68,7 +74,7 @@ class ServerHibernationPlugin:
         
         self.server.logger.info("Server Hibernation plugin loaded")
     
-    def unload(self):
+    def unload(self) -> None:
         """Unload the plugin"""
         # Stop timers
         if self.hibernation_timer:
@@ -82,7 +88,7 @@ class ServerHibernationPlugin:
         
         self.server.logger.info("Server Hibernation plugin unloaded")
     
-    def on_player_joined(self, player: str, info):
+    def on_player_joined(self, player: str, info: mcdr.Info) -> None:
         """Handle player join event"""
         self.player_count += 1
         self.server.logger.info(f"Player {player} joined. Current players: {self.player_count}")
@@ -96,7 +102,7 @@ class ServerHibernationPlugin:
         if self.is_hibernating:
             self.wake_up_server(player)
     
-    def on_player_left(self, player: str):
+    def on_player_left(self, player: str) -> None:
         """Handle player leave event"""
         self.player_count = max(0, self.player_count - 1)
         self.server.logger.info(f"Player {player} left. Current players: {self.player_count}")
@@ -105,14 +111,14 @@ class ServerHibernationPlugin:
         if self.player_count == 0 and not self.is_hibernating:
             self.start_hibernation_timer()
     
-    def on_wake_up_request(self, username, address):
+    def on_wake_up_request(self, username: str, address: str) -> None:
         """Handle wake up request from proxy server"""
         self.server.logger.info(f"Wake up request from {username} at {address}")
         
         if self.is_hibernating:
             self.wake_up_server(username)
     
-    def wake_up_server(self, player: str = None):
+    def wake_up_server(self, player: Optional[str] = None) -> None:
         """Wake up the server"""
         self.server.logger.info("Waking up server...")
         
@@ -149,7 +155,7 @@ class ServerHibernationPlugin:
         else:
             # Resume the suspended server process
             self.server.logger.info("Resuming suspended server process...")
-            if self.process_manager.resume_server():
+            if self.process_manager and self.process_manager.resume_server():
                 self.server.logger.info("Server process resumed successfully")
                 
                 # Notify players that server is awake
@@ -163,7 +169,7 @@ class ServerHibernationPlugin:
         
         self.server.logger.info("Server is now awake")
     
-    def start_hibernation_timer(self):
+    def start_hibernation_timer(self) -> None:
         """Start the hibernation timer"""
         # Check if server is running using MCDReforged API
         if not self.server.is_server_running():
@@ -184,7 +190,7 @@ class ServerHibernationPlugin:
         )
         self.hibernation_timer.start()
     
-    def hibernate_server(self):
+    def hibernate_server(self) -> None:
         """Hibernate the server"""
         # Check if server is running using MCDReforged API
         if not self.server.is_server_running():
@@ -223,7 +229,7 @@ class ServerHibernationPlugin:
                     self.config["proxy"]["port"] = proxy_port
                     self.server.logger.info(f"Using port {proxy_port} for proxy server")
                 
-                if self.proxy_server.start():
+                if self.proxy_server and self.proxy_server.start():
                     self.server.logger.info("Proxy server started")
                     # Notify players that they need to connect to the new port
                     self.server.logger.info(f"Players should connect to port {proxy_port} while server is hibernating")
@@ -237,7 +243,7 @@ class ServerHibernationPlugin:
         else:
             # Suspend the server process
             self.server.logger.info("Suspending server process...")
-            if self.process_manager.suspend_server():
+            if self.process_manager and self.process_manager.suspend_server():
                 self.server.logger.info("Server process suspended successfully")
                 
                 # Start proxy server on a different port (since suspended process still holds the original port)
@@ -248,19 +254,20 @@ class ServerHibernationPlugin:
                     self.config["proxy"]["port"] = proxy_port
                     self.server.logger.info(f"Using port {proxy_port} for proxy server (different from server)")
                 
-                if self.proxy_server.start():
+                if self.proxy_server and self.proxy_server.start():
                     self.server.logger.info("Proxy server started")
                     self.server.logger.info(f"Players should connect to port {proxy_port} while server is hibernating")
                 else:
                     self.server.logger.error("Failed to start proxy server")
                     # Try to resume the server
-                    self.process_manager.resume_server()
+                    if self.process_manager:
+                        self.process_manager.resume_server()
                     self.is_hibernating = False
             else:
                 self.server.logger.error("Failed to suspend server process")
                 self.is_hibernating = False
     
-    def start_periodic_check(self):
+    def start_periodic_check(self) -> None:
         """Start periodic player count check"""
         interval = self.config["hibernation"]["check_interval"]
         

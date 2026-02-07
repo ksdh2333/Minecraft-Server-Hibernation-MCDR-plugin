@@ -17,7 +17,7 @@ class ProxyServer:
         self.config = config
         self.server_interface = server_interface
         self.wake_up_callback = wake_up_callback
-        self.socket = None
+        self.socket: Optional[socket.socket] = None
         self.running = False
         self.client_threads = []
         
@@ -62,6 +62,9 @@ class ProxyServer:
         """Accept incoming connections"""
         while self.running:
             try:
+                if not self.socket:
+                    self.server_interface.logger.error("Socket is None, cannot accept connections")
+                    break
                 client_socket, address = self.socket.accept()
                 self.server_interface.logger.info(f"New connection from {address}")
                 
